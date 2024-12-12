@@ -70,6 +70,21 @@ function __triggerKeyboardFocus(el, keyCode, opt) {
   el.dispatchEvent ? el.dispatchEvent(eventObj) : el.fireEvent('onfocus', eventObj);
 }
 
+jest.mock('ws', () => {
+  return {
+    WebSocket: class {
+      constructor(url) {
+        this.url = url;
+        this.readyState = 1;
+        this.send = jest.fn();
+        this.close = jest.fn();
+        this.addEventListener = jest.fn();
+        this.removeEventListener = jest.fn();
+      }
+    }
+  };
+});
+
 beforeAll(async () => {
   browser = await puppeteer.launch({ args: ['--no-sandbox'] });
   page = await browser.newPage();
@@ -575,6 +590,30 @@ describe('\n   Hotkeys.js Test Case222.\n', () => {
       ctrlKey: true,
     });
     hotkeys.unbind('⌃+a');
+  });
+
+  test('HotKeys Key single callback Test Case', async () => {
+    hotkeys('ctrl+s', () => {
+      expect(false).toBeTruthy();
+    });
+    hotkeys('ctrl+s', { single: true }, (e) => {
+      expect(e.keyCode).toBe(83);
+      expect(e.ctrlKey).toBeTruthy();
+    });
+    hotkeys('ctrl+shift+s', { single: true }, (e) => {
+      expect(e.shiftKey).toBeTruthy();
+      expect(e.keyCode).toBe(83);
+      expect(e.ctrlKey).toBeTruthy();
+    });
+    __triggerKeyboardEvent(document.body, 83, {
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    __triggerKeyboardEvent(document.body, 83, {
+      ctrlKey: true,
+    });
+
+    expect.assertions(5);
   });
 
   // const _modifier = { //修饰键

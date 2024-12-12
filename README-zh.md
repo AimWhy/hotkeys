@@ -1,15 +1,15 @@
 # Hotkeys
 
-[![CDN jsdelivr](https://data.jsdelivr.com/v1/package/npm/hotkeys-js/badge?style=rounded)](https://www.jsdelivr.com/package/npm/hotkeys-js)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-048754?logo=buymeacoffee)](https://jaywcjlove.github.io/#/sponsor)
 [![npm dowload](https://img.shields.io/npm/dm/hotkeys-js?logo=npm)](https://www.npmjs.com/package/hotkeys-js)
 [![Stargazers](https://img.shields.io/github/stars/jaywcjlove/hotkeys.svg)](https://github.com/jaywcjlove/hotkeys/stargazers)
 ![no dependencies](http://jaywcjlove.github.io/sb/status/no-dependencies.svg)
 [![GitHub Actions CI](https://github.com/jaywcjlove/hotkeys/actions/workflows/ci.yml/badge.svg)](https://github.com/jaywcjlove/hotkeys/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/jaywcjlove/hotkeys/badge.svg?branch=master)](https://coveralls.io/github/jaywcjlove/hotkeys?branch=master)
-[![English](https://jaywcjlove.github.io/sb/lang/english.svg)](https://jaywcjlove.github.io/hotkeys/)
+[![English](https://jaywcjlove.github.io/sb/lang/english.svg)](https://jaywcjlove.github.io/hotkeys-js/)
 [![for Gitee](https://jaywcjlove.github.io/sb/ico/gitee.svg)](https://gitee.com/jaywcjlove/hotkeys)
 
-这是一个强健的 Javascript 库用于捕获键盘输入和输入的组合键，它易于使用，没有依赖，压缩只有([~3kb](https://bundlephobia.com/result?p=hotkeys-js))，gzip: 1.73kb。[官方文档DEMO预览](http://jaywcjlove.github.io/hotkeys/?lang=cn)，[更多实例](https://github.com/jaywcjlove/hotkeys/issues?q=label%3ADemo+)。
+这是一个强健的 Javascript 库用于捕获键盘输入和输入的组合键，它易于使用，没有依赖，压缩只有([~6kB](https://bundlephobia.com/result?p=hotkeys-js))，gzip: **`2.8kB`**。[官方文档DEMO预览](http://jaywcjlove.github.io/hotkeys-js/?lang=cn)，[更多实例](https://github.com/jaywcjlove/hotkeys/issues?q=label%3ADemo+)。
 
 
 ```shell
@@ -186,6 +186,9 @@ hotkeys('ctrl-y, ctrl-a', {splitKey: '-'}, function(e){
 - `element<HTMLElement>`
 - `keyup<Boolean>`
 - `keydown<Boolean>`
+- `splitKey<string>` (默认值 `+`)
+- `capture<Boolean>`
+- `single<Boolean>`
 
 ```js
 hotkeys('o, enter', {
@@ -194,9 +197,70 @@ hotkeys('o, enter', {
 }, function(){ 
   console.log('do something else');
 });
+
+hotkeys('ctrl-+', { splitKey: '-' }, function(e) {
+  console.log('you pressed ctrl and +');
+});
+
+hotkeys('+', { splitKey: '-' }, function(e){
+  console.log('you pressed +');
+})
 ```
 
-## 切换快捷键
+**keyup**
+
+**key down** 和 **key up** 将都执行回调事件。
+
+```js
+hotkeys('ctrl+a,alt+a+s', { keyup: true }, (evn, handler) => {
+  if(evn.type === 'keydown') {
+    console.log('keydown:', evn.type, handler, handler.key);
+  }
+  if(evn.type === 'keyup') {
+    console.log('keyup:', evn.type, handler, handler.key);
+  }
+});
+```
+
+## API 参考
+
+### 星号 * 
+
+通过修饰符号判断
+
+```js
+hotkeys('*', function() {
+  if (hotkeys.shift) {
+    console.log('shift is pressed!');
+  }
+
+  if (hotkeys.ctrl) {
+    console.log('ctrl is pressed!');
+  }
+
+  if (hotkeys.alt) {
+    console.log('alt is pressed!');
+  }
+
+  if (hotkeys.option) {
+    console.log('option is pressed!');
+  }
+
+  if (hotkeys.control) {
+    console.log('control is pressed!');
+  }
+
+  if (hotkeys.cmd) {
+    console.log('cmd is pressed!');
+  }
+
+  if (hotkeys.command) {
+    console.log('command is pressed!');
+  }
+});
+```
+
+### 切换快捷键
 
 如果在单页面在不同的区域，相同的快捷键，干不同的事儿，之间来回切换。O(∩_∩)O ！
 
@@ -218,7 +282,7 @@ hotkeys('ctrl+o, enter', 'scope2', function(){
 hotkeys.setScope('scope1'); // 默认所有事儿都干哦
 ```
 
-## 标记快捷键范围
+### 标记快捷键范围
 
 **删除** 区域范围标记
 
@@ -238,19 +302,18 @@ hotkeys.getScope();
 hotkeys.setScope('scope1');
 ```
 
-## trigger
+### trigger
 
 ```js
 hotkeys.trigger('ctrl+o')
 hotkeys.trigger('ctrl+o', 'scope2')
 ```
 
-## 解除绑定
+### 解除绑定
 
 `hotkeys.unbind()` 解除绑定的所有快捷键
 `hotkeys.unbind("ctrl+o, ctrl+alt+enter")` 解除绑定两组快捷键  
 `hotkeys.unbind("ctrl+o","files")` 解除绑定名字叫files的区域范围中的一组快捷键  
-
 
 ```js
 // 解除绑定 'a' 程序函数
@@ -272,14 +335,20 @@ hotkeys.unbind('a', example);
 hotkeys('a', 'issues', example);
 hotkeys.unbind('a', 'issues', example);
 ```
-```js
+
 可以通过传入对象解除绑定的快捷键
+
+```js
 hotkeys.unbind({
   key: 'ctrl-e,ctrl-u',
   scope: 'issues',
   spitKey: '-'
 })
+```
+
 传入数组可同时解除多个scope下绑定的快捷键
+
+```js
 hotkeys.unbind([
   {
     key: 'a, ctrl+r',
@@ -293,7 +362,7 @@ hotkeys.unbind([
 ])
 ```
 
-## 键判断
+### isPressed
 
 判断摁下的键是否为某个键
 
@@ -305,7 +374,7 @@ hotkeys('a', function(){
 });
 ```
 
-## 获取摁下键值
+### getPressedKeyCodes
 
 获取摁下绑定键的键值 `hotkeys.getPressedKeyCodes()`
 
@@ -315,22 +384,32 @@ hotkeys('command+ctrl+shift+a,f', function(){
 })
 ```
 
-## keyup
+### getPressedKeyString
 
-**key down** 和 **key up** 将都执行回调事件。
+获取所有注册代码的列表
 
 ```js
-hotkeys('ctrl+a,alt+a+s', { keyup: true }, (evn, handler) => {
-  if(evn.type === 'keydown') {
-    console.log('keydown:', evn.type, handler, handler.key);
-  }
-  if(evn.type === 'keyup') {
-    console.log('keyup:', evn.type, handler, handler.key);
-  }
-});
+hotkeys('command+ctrl+shift+a,f', function() {
+  console.log(hotkeys.getPressedKeyString()); //=> ['⌘', '⌃', '⇧', 'A', 'F']
+})
 ```
 
-## 过滤
+
+### getAllKeyCodes
+
+Get a list of all registration codes.
+
+```js
+hotkeys('command+ctrl+shift+a,f', function() {
+  console.log(hotkeys.getAllKeyCodes());
+  // [
+  //   { scope: 'all', shortcut: 'command+ctrl+shift+a', mods: [91, 17, 16], keys: [91, 17, 16, 65] },
+  //   { scope: 'all', shortcut: 'f', mods: [], keys: [42] }
+  // ]
+})
+```
+
+### filter
 
 `INPUT`  `SELECT` `TEXTAREA` 默认不处理。
 `hotkeys.filter` 返回 `true` 快捷键设置才会起作用，`false` 快捷键设置失效。
@@ -406,8 +485,8 @@ $ npm run test:watch # Development model
 
 As always, thanks to our amazing contributors!
 
-<a href="https://github.com/jaywcjlove/hotkeys/graphs/contributors">
-  <img src="https://jaywcjlove.github.io/hotkeys/CONTRIBUTORS.svg" />
+<a href="https://github.com/jaywcjlove/hotkeys-js/graphs/contributors">
+  <img src="https://jaywcjlove.github.io/hotkeys-js/CONTRIBUTORS.svg" />
 </a>
 
 Made with [github-action-contributors](https://github.com/jaywcjlove/github-action-contributors).

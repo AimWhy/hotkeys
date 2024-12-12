@@ -2,16 +2,16 @@
 
 <!--dividing-->
 
-[![CDN jsdelivr](https://data.jsdelivr.com/v1/package/npm/hotkeys-js/badge?style=rounded)](https://www.jsdelivr.com/package/npm/hotkeys-js)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-048754?logo=buymeacoffee)](https://jaywcjlove.github.io/#/sponsor)
 [![](https://img.shields.io/npm/dm/hotkeys-js?logo=npm)](https://www.npmjs.com/package/hotkeys-js)
-[![](https://img.shields.io/github/stars/jaywcjlove/hotkeys.svg)](https://github.com/jaywcjlove/hotkeys/stargazers)
+[![](https://img.shields.io/github/stars/jaywcjlove/hotkeys-js.svg)](https://github.com/jaywcjlove/hotkeys/stargazers)
 ![no dependencies](http://jaywcjlove.github.io/sb/status/no-dependencies.svg)
-[![GitHub Actions CI](https://github.com/jaywcjlove/hotkeys/actions/workflows/ci.yml/badge.svg)](https://github.com/jaywcjlove/hotkeys/actions/workflows/ci.yml)
+[![GitHub Actions CI](https://github.com/jaywcjlove/hotkeys-js/actions/workflows/ci.yml/badge.svg)](https://github.com/jaywcjlove/hotkeys-js/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/jaywcjlove/hotkeys/badge.svg?branch=master)](https://coveralls.io/github/jaywcjlove/hotkeys?branch=master)
-[![jaywcjlove/hotkeys](https://jaywcjlove.github.io/sb/lang/chinese.svg)](https://github.com/jaywcjlove/hotkeys/blob/master/README-zh.md)
-[![jaywcjlove/hotkeys](https://jaywcjlove.github.io/sb/ico/gitee.svg)](https://gitee.com/jaywcjlove/hotkeys)
+[![jaywcjlove/hotkeys-js](https://jaywcjlove.github.io/sb/lang/chinese.svg)](https://github.com/jaywcjlove/hotkeys-js/blob/master/README-zh.md)
+[![jaywcjlove/hotkeys-js](https://jaywcjlove.github.io/sb/ico/gitee.svg)](https://gitee.com/jaywcjlove/hotkeys)
 
-HotKeys.js is an input capture library with some very special features, it is easy to pick up and use, has a reasonable footprint ([~3kb](https://bundlephobia.com/result?p=hotkeys-js)) (gzipped: 1.73kb), and has no dependencies. It should not interfere with any JavaScript libraries or frameworks. Official document [demo preview](http://jaywcjlove.github.io/hotkeys). [More examples](https://github.com/jaywcjlove/hotkeys/issues?q=label%3ADemo+).
+HotKeys.js is an input capture library with some very special features, it is easy to pick up and use, has a reasonable footprint ([~6kB](https://bundlephobia.com/result?p=hotkeys-js)) (gzipped: **`2.8kB`**), and has no dependencies. It should not interfere with any JavaScript libraries or frameworks. Official document [demo preview](https://jaywcjlove.github.io/hotkeys-js). [More examples](https://github.com/jaywcjlove/hotkeys-js/issues?q=label%3ADemo+).
 
 ```bash
 ╭┈┈╮          ╭┈┈╮  ╭┈┈╮
@@ -159,12 +159,13 @@ hotkeys('*','wcj', function(event){
 - `keydown<Boolean>`
 - `splitKey<string>` (default is `+`)
 - `capture<Boolean>`
+- `single<Boolean>`
 
 ```js
 hotkeys('o, enter', {
   scope: 'wcj',
   element: document.getElementById('wrapper'),
-}, function(){
+}, function() {
   console.log('do something else');
 });
 
@@ -237,10 +238,10 @@ Use the `hotkeys.setScope` method to set scope. There can only be one active sco
 
 ```js
 // Define shortcuts with a scope
-hotkeys('ctrl+o, ctrl+alt+enter', 'issues', function(){
+hotkeys('ctrl+o, ctrl+alt+enter', 'issues', function() {
   console.log('do something');
 });
-hotkeys('o, enter', 'files', function(){
+hotkeys('o, enter', 'files', function() {
   console.log('do something else');
 });
 
@@ -315,6 +316,8 @@ hotkeys('a', function() {
 
 ### trigger
 
+trigger shortcut key event
+
 ```js
 hotkeys.trigger('ctrl+o');
 hotkeys.trigger('ctrl+o', 'scope2');
@@ -325,19 +328,32 @@ hotkeys.trigger('ctrl+o', 'scope2');
 Returns an array of key codes currently pressed.
 
 ```js
-hotkeys('command+ctrl+shift+a,f', function(){
+hotkeys('command+ctrl+shift+a,f', function() {
   console.log(hotkeys.getPressedKeyCodes()); //=> [17, 65] or [70]
 })
 ```
 
-
-### getPressedKeyStrings
+### getPressedKeyString
 
 Returns an array of key codes currently pressed.
 
 ```js
-hotkeys('command+ctrl+shift+a,f', function(){
+hotkeys('command+ctrl+shift+a,f', function() {
   console.log(hotkeys.getPressedKeyString()); //=> ['⌘', '⌃', '⇧', 'A', 'F']
+})
+```
+
+### getAllKeyCodes
+
+Get a list of all registration codes.
+
+```js
+hotkeys('command+ctrl+shift+a,f', function() {
+  console.log(hotkeys.getAllKeyCodes());
+  // [
+  //   { scope: 'all', shortcut: 'command+ctrl+shift+a', mods: [91, 17, 16], keys: [91, 17, 16, 65] },
+  //   { scope: 'all', shortcut: 'f', mods: [], keys: [42] }
+  // ]
 })
 ```
 
@@ -414,8 +430,8 @@ $ npm run test:watch # Development model
 
 As always, thanks to our amazing contributors!
 
-<a href="https://github.com/jaywcjlove/hotkeys/graphs/contributors">
-  <img src="https://jaywcjlove.github.io/hotkeys/CONTRIBUTORS.svg" />
+<a href="https://github.com/jaywcjlove/hotkeys-js/graphs/contributors">
+  <img src="https://jaywcjlove.github.io/hotkeys-js/CONTRIBUTORS.svg" />
 </a>
 
 Made with [github-action-contributors](https://github.com/jaywcjlove/github-action-contributors).

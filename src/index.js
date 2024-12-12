@@ -1,10 +1,10 @@
-import { addEvent, getMods, getKeys, compareArray } from './utils';
+import { addEvent, removeEvent, getMods, getKeys, compareArray } from './utils';
 import { _keyMap, _modifier, modifierMap, _mods, _handlers } from './var';
 
 let _downKeys = []; // 记录摁下的绑定键
-let winListendFocus = false; // window是否已经监听了focus事件
+let winListendFocus = null; // window是否已经监听了focus事件
 let _scope = 'all'; // 默认热键范围
-const elementHasBindEvent = []; // 已绑定事件的节点记录
+const elementEventMap = new Map(); // 已绑定事件的节点记录
 
 // 返回键码
 const code = (x) => _keyMap[x.toLowerCase()]
@@ -31,16 +31,32 @@ function getPressedKeyString() {
   return _downKeys.map((c) => getKey(c) || getModifier(c) || String.fromCharCode(c));
 }
 
+function getAllKeyCodes() {
+  const result = [];
+  Object.keys(_handlers).forEach((k) => {
+    _handlers[k].forEach(({ key, scope, mods, shortcut }) => {
+      result.push({
+        scope,
+        shortcut,
+        mods,
+        keys: key.split('+').map((v) => code(v)),
+      });
+    });
+  });
+  return result;
+}
+
 // 表单控件控件判断 返回 Boolean
 // hotkey is effective only when filter return true
 function filter(event) {
   const target = event.target || event.srcElement;
   const { tagName } = target;
   let flag = true;
+  const isInput = tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'file', 'reset', 'submit', 'color'].includes(target.type);
   // ignore: isContentEditable === 'true', <input> and <textarea> when readOnly state is false, <select>
   if (
     target.isContentEditable
-    || ((tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') && !target.readOnly)
+    || ((isInput || tagName === 'TEXTAREA' || tagName === 'SELECT') && !target.readOnly)
   ) {
     flag = false;
   }
@@ -67,8 +83,12 @@ function deleteScope(scope, newScope) {
     if (Object.prototype.hasOwnProperty.call(_handlers, key)) {
       handlers = _handlers[key];
       for (i = 0; i < handlers.length;) {
-        if (handlers[i].scope === scope) handlers.splice(i, 1);
-        else i++;
+        if (handlers[i].scope === scope) {
+          const deleteItems = handlers.splice(i, 1);
+          deleteItems.forEach(({ element }) => removeKeyEvent(element));
+        } else {
+          i++;
+        }
       }
     }
   }
@@ -104,7 +124,11 @@ function clearModifier(event) {
 function unbind(keysInfo, ...args) {
   // unbind(), unbind all keys
   if (typeof keysInfo === 'undefined') {
-    Object.keys(_handlers).forEach((key) => delete _handlers[key]);
+    Object.keys(_handlers).forEach((key) => {
+      Array.isArray(_handlers[key]) && _handlers[key].forEach((info) => eachUnbind(info));
+      delete _handlers[key];
+    });
+    removeKeyEvent(null);
   } else if (Array.isArray(keysInfo)) {
     // support like : unbind([{key: 'ctrl+a', scope: 's1'}, {key: 'ctrl-a', scope: 's2', splitKey: '-'}])
     keysInfo.forEach((info) => {
@@ -144,15 +168,15 @@ const eachUnbind = ({
     // 判断是否传入范围，没有就获取范围
     if (!scope) scope = getScope();
     const mods = len > 1 ? getMods(_modifier, unbindKeys) : [];
+    const unbindElements = [];
     _handlers[keyCode] = _handlers[keyCode].filter((record) => {
       // 通过函数判断，是否解除绑定，函数相等直接返回
       const isMatchingMethod = method ? record.method === method : true;
-      return !(
-        isMatchingMethod
-        && record.scope === scope
-        && compareArray(record.mods, mods)
-      );
+      const isUnbind = isMatchingMethod && record.scope === scope && compareArray(record.mods, mods);
+      if (isUnbind) unbindElements.push(record.element);
+      return !isUnbind;
     });
+    unbindElements.forEach((element) => removeKeyEvent(element));
   });
 };
 
@@ -189,6 +213,8 @@ function eventHandler(event, handler, scope, element) {
       || modifiersMatch
       || handler.shortcut === '*'
     ) {
+      handler.keys = [];
+      handler.keys = handler.keys.concat(_downKeys);
       if (handler.method(event, handler) === false) {
         if (event.preventDefault) event.preventDefault();
         else event.returnValue = false;
@@ -222,20 +248,19 @@ function dispatch(event, element) {
    * Jest test cases are required.
    * ===============================
    */
-  ['ctrlKey', 'altKey', 'shiftKey', 'metaKey'].forEach((keyName) => {
+  ['metaKey', 'ctrlKey', 'altKey', 'shiftKey'].forEach((keyName) => {
     const keyNum = modifierMap[keyName];
     if (event[keyName] && _downKeys.indexOf(keyNum) === -1) {
       _downKeys.push(keyNum);
     } else if (!event[keyName] && _downKeys.indexOf(keyNum) > -1) {
       _downKeys.splice(_downKeys.indexOf(keyNum), 1);
-    } else if (keyName === 'metaKey' && event[keyName] && _downKeys.length === 3) {
-      /**
-       * Fix if Command is pressed:
-       * ===============================
-       */
-      if (!(event.ctrlKey || event.shiftKey || event.altKey)) {
-        _downKeys = _downKeys.slice(_downKeys.indexOf(keyNum));
-      }
+    } else if (keyName === 'metaKey' && event[keyName]) {
+      // 如果command被按下，那就清空所有除event按键外的非装饰键。
+      // 因为command被按下的情况下非装饰键的keyup永远都不会触发。这是已知的浏览器限制。
+      // If command key is pressed, clear all non-decorating keys except for key in event.
+      // This is because keyup for a non-decorating key will NEVER be triggered when command is pressed.
+      // This is a known browser limitation.
+      _downKeys = _downKeys.filter((k) => k in modifierMap || k === key);
     }
   });
   /**
@@ -295,13 +320,15 @@ function dispatch(event, element) {
   // key 不在 _handlers 中返回
   if (!(key in _handlers)) return;
 
-  for (let i = 0; i < _handlers[key].length; i++) {
+  const handlerKey = _handlers[key];
+  const keyLen = handlerKey.length;
+  for (let i = 0; i < keyLen; i++) {
     if (
-      (event.type === 'keydown' && _handlers[key][i].keydown)
-      || (event.type === 'keyup' && _handlers[key][i].keyup)
+      (event.type === 'keydown' && handlerKey[i].keydown)
+      || (event.type === 'keyup' && handlerKey[i].keyup)
     ) {
-      if (_handlers[key][i].key) {
-        const record = _handlers[key][i];
+      if (handlerKey[i].key) {
+        const record = handlerKey[i];
         const { splitKey } = record;
         const keyShortcut = record.key.split(splitKey);
         const _downKeysCurrent = []; // 记录当前按键键值
@@ -317,11 +344,6 @@ function dispatch(event, element) {
   }
 }
 
-// 判断 element 是否已经绑定事件
-function isElementBind(element) {
-  return elementHasBindEvent.indexOf(element) > -1;
-}
-
 function hotkeys(key, option, method) {
   _downKeys = [];
   const keys = getKeys(key); // 需要处理的快捷键列表
@@ -333,6 +355,7 @@ function hotkeys(key, option, method) {
   let keydown = true;
   let splitKey = '+';
   let capture = false;
+  let single = false; // 单个callback
 
   // 对为设定范围的判断
   if (method === undefined && typeof option === 'function') {
@@ -346,9 +369,13 @@ function hotkeys(key, option, method) {
     if (option.keydown !== undefined) keydown = option.keydown; // eslint-disable-line
     if (option.capture !== undefined) capture = option.capture; // eslint-disable-line
     if (typeof option.splitKey === 'string') splitKey = option.splitKey; // eslint-disable-line
+    if (option.single === true) single = true; // eslint-disable-line
   }
 
   if (typeof option === 'string') scope = option;
+
+  // 如果只允许单个callback，先unbind
+  if (single) unbind(key, scope);
 
   // 对于每个快捷键进行处理
   for (; i < keys.length; i++) {
@@ -364,6 +391,7 @@ function hotkeys(key, option, method) {
 
     // 判断key是否在_handlers中，不在就赋一个空数组
     if (!(key in _handlers)) _handlers[key] = [];
+
     _handlers[key].push({
       keyup,
       keydown,
@@ -377,21 +405,22 @@ function hotkeys(key, option, method) {
     });
   }
   // 在全局document上设置快捷键
-  if (typeof element !== 'undefined' && !isElementBind(element) && window) {
-    elementHasBindEvent.push(element);
-    addEvent(element, 'keydown', (e) => {
-      dispatch(e, element);
-    }, capture);
-    if (!winListendFocus) {
-      winListendFocus = true;
-      addEvent(window, 'focus', () => {
-        _downKeys = [];
-      }, capture);
+  if (typeof element !== 'undefined' && window) {
+    if (!elementEventMap.has(element)) {
+      const keydownListener = (event = window.event) => dispatch(event, element);
+      const keyupListenr = (event = window.event) => {
+        dispatch(event, element);
+        clearModifier(event);
+      };
+      elementEventMap.set(element, { keydownListener, keyupListenr, capture });
+      addEvent(element, 'keydown', keydownListener, capture);
+      addEvent(element, 'keyup', keyupListenr, capture);
     }
-    addEvent(element, 'keyup', (e) => {
-      dispatch(e, element);
-      clearModifier(e);
-    }, capture);
+    if (!winListendFocus) {
+      const listener = () => { _downKeys = []; };
+      winListendFocus = { listener, capture };
+      addEvent(window, 'focus', listener, capture);
+    }
   }
 }
 
@@ -406,12 +435,51 @@ function trigger(shortcut, scope = 'all') {
   });
 }
 
+// 销毁事件,unbind之后判断element上是否还有键盘快捷键，如果没有移除监听
+function removeKeyEvent(element) {
+  const values = Object.values(_handlers).flat();
+  const findindex = values.findIndex(({ element: el }) => el === element);
+
+  if (findindex < 0) {
+    const { keydownListener, keyupListenr, capture } = elementEventMap.get(element) || {};
+    if (keydownListener && keyupListenr) {
+      removeEvent(element, 'keyup', keyupListenr, capture);
+      removeEvent(element, 'keydown', keydownListener, capture);
+      elementEventMap.delete(element);
+    }
+  }
+
+  if (values.length <= 0 || elementEventMap.size <= 0) {
+    // 移除所有的元素上的监听
+    const eventKeys = Object.keys(elementEventMap);
+    eventKeys.forEach((el) => {
+      const { keydownListener, keyupListenr, capture } = elementEventMap.get(el) || {};
+      if (keydownListener && keyupListenr) {
+        removeEvent(el, 'keyup', keyupListenr, capture);
+        removeEvent(el, 'keydown', keydownListener, capture);
+        elementEventMap.delete(el);
+      }
+    });
+    // 清空 elementEventMap
+    elementEventMap.clear();
+    // 清空 _handlers
+    Object.keys(_handlers).forEach((key) => delete _handlers[key]);
+    // 移除window上的focus监听
+    if (winListendFocus) {
+      const { listener, capture } = winListendFocus;
+      removeEvent(window, 'focus', listener, capture);
+      winListendFocus = null;
+    }
+  }
+}
+
 const _api = {
   getPressedKeyString,
   setScope,
   getScope,
   deleteScope,
   getPressedKeyCodes,
+  getAllKeyCodes,
   isPressed,
   filter,
   trigger,
